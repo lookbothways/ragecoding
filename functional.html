@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ragecoding Web Simulator</title>
-    <!-- Importing a clean, thin font with weights 100 (Ultra Thin), 300 (Light), and 400 (Regular) -->
+    <!-- Importing a clean, thin font -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400&display=swap" rel="stylesheet">
     <style>
         body {
@@ -39,22 +39,7 @@
         #controls {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            gap: 20px;
-        }
-
-        .timer-group {
-            display: flex;
-            align-items: baseline;
-            gap: 10px;
-        }
-
-        #generating-text {
-            display: none;
-            font-size: 1.5rem;
-            color: #666;
-            font-weight: 300;
+            gap: 30px;
         }
 
         #start-btn {
@@ -66,8 +51,8 @@
             color: #111;
             cursor: pointer;
             outline: none;
-            text-align: left;
-            padding: 0;
+            width: 100px;
+            text-align: right;
             transition: color 0.2s;
         }
 
@@ -79,7 +64,6 @@
             display: flex;
             flex-direction: column;
             gap: 5px;
-            align-items: flex-end;
         }
 
         .dropdown-wrapper label {
@@ -100,7 +84,7 @@
             background: #fff;
             outline: none;
             cursor: pointer;
-            width: 180px;
+            width: 200px;
         }
 
         textarea {
@@ -116,33 +100,10 @@
             resize: none;
             background: #fafafa;
             box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
-            box-sizing: border-box;
         }
 
         textarea:focus {
             border-color: #bbb;
-        }
-
-        /* --- NEW GENERATION RESULTS STYLING --- */
-        #result-image {
-            display: none;
-            width: 100%;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            object-fit: cover;
-        }
-
-        #result-text {
-            display: none;
-            font-family: 'Roboto', sans-serif;
-            font-weight: 100; /* The ultra-thin font requested! */
-            font-size: 1.2rem;
-            color: #444;
-            text-align: center;
-            width: 100%;
-            word-wrap: break-word;
-            margin-top: -20px; /* Pulls it slightly closer to the image */
-            font-style: italic;
         }
 
         /* The fake cursor that will lie to the user */
@@ -156,9 +117,9 @@
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="black" stroke="white" stroke-width="1.5"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>');
             background-size: contain;
             background-repeat: no-repeat;
-            pointer-events: none;
+            pointer-events: none; /* Crucial: ensures clicks pass THROUGH the fake cursor to the real OS mouse location */
             z-index: 9999;
-            transform: translate(-3px, -3px);
+            transform: translate(-3px, -3px); /* Offset to match pointer tip */
         }
 
         body.rage-active #fake-cursor {
@@ -172,43 +133,34 @@
 
     <div id="container">
         <div id="controls">
-            <div class="timer-group">
-                <span id="generating-text">generating in</span>
-                <button id="start-btn">start</button>
-            </div>
+            <button id="start-btn">start</button>
             <div class="dropdown-wrapper">
                 <label>Current model</label>
                 <select id="model-select"></select>
             </div>
         </div>
-
-        <!-- The active generation area -->
-        <textarea id="test-field" placeholder="Describe the image you want to generate..."></textarea>
-
-        <!-- The post-generation reveal area -->
-        <img id="result-image" src="image.jpg" alt="Generated Image">
-        <div id="result-text"></div>
+        <textarea id="test-field" placeholder="Type your prompt here..."></textarea>
     </div>
 
     <script>
-// --- CONFIGURATION ---
+        // --- CONFIGURATION ---
         const AI_MODELS = {
-            "Google Nano Banana 2": 2.0,
-            "Google Imagen 4 Ultra": 4.0,
-            "Seedream 4.0": 6.0,
-            "Z-Image": 8.0,
-            "SDXL": 10.0,
-            "Grok": 12.0,
-            "SD1.0": 14.0,
-            "Mystic 2.5": 16.0,
-            "Flux.2 Flex": 18.0,
-            "Mystic 2.5 Fluid": 20.0
+            "Claude 3.7 Sonnet": 2.0,
+            "OpenAI o3-mini": 4.0,
+            "GPT-4.5": 6.0,
+            "DeepSeek R1": 8.0,
+            "Gemini 1.5 Pro": 10.0,
+            "Llama 3.3 70B": 12.0,
+            "Grok 3": 14.0,
+            "Mistral Large": 16.0,
+            "Claude 2.1": 18.0,
+            "GPT-3.5 Turbo": 20.0
         };
 
         const QWERTY_COORDS = {
-            'q': [0, 0], 'w':[0, 1], 'e':[0, 2], 'r': [0, 3], 't':[0, 4], 'y':[0, 5], 'u': [0, 6], 'i': [0, 7], 'o': [0, 8], 'p':[0, 9],
-            'a':[1, 0.25], 's':[1, 1.25], 'd':[1, 2.25], 'f':[1, 3.25], 'g':[1, 4.25], 'h':[1, 5.25], 'j':[1, 6.25], 'k':[1, 7.25], 'l':[1, 8.25],
-            'z':[2, 0.75], 'x':[2, 1.75], 'c':[2, 2.75], 'v':[2, 3.75], 'b':[2, 4.75], 'n':[2, 5.75], 'm':[2, 6.75]
+            'q': [0, 0], 'w':[0, 1], 'e': [0, 2], 'r': [0, 3], 't':[0, 4], 'y': [0, 5], 'u': [0, 6], 'i': [0, 7], 'o': [0, 8], 'p':[0, 9],
+            'a': [1, 0.25], 's':[1, 1.25], 'd': [1, 2.25], 'f':[1, 3.25], 'g': [1, 4.25], 'h':[1, 5.25], 'j': [1, 6.25], 'k':[1, 7.25], 'l': [1, 8.25],
+            'z':[2, 0.75], 'x': [2, 1.75], 'c':[2, 2.75], 'v': [2, 3.75], 'b':[2, 4.75], 'n': [2, 5.75], 'm':[2, 6.75]
         };
 
         // --- STATE VARIABLES ---
@@ -226,21 +178,18 @@
 
         // --- DOM ELEMENTS ---
         const startBtn = document.getElementById('start-btn');
-        const generatingText = document.getElementById('generating-text');
         const modelSelect = document.getElementById('model-select');
         const testField = document.getElementById('test-field');
-        const resultImage = document.getElementById('result-image');
-        const resultText = document.getElementById('result-text');
         const fakeCursor = document.getElementById('fake-cursor');
 
         // Populate Dropdown
-        for (const[name, multiplier] of Object.entries(AI_MODELS)) {
+        for (const [name, multiplier] of Object.entries(AI_MODELS)) {
             const option = document.createElement('option');
             option.value = multiplier;
             option.textContent = name;
             modelSelect.appendChild(option);
         }
-        modelSelect.value = "10";
+        modelSelect.value = "10"; // Default Gemini
 
         modelSelect.addEventListener('change', (e) => {
             currentMultiplier = parseFloat(e.target.value);
@@ -261,12 +210,13 @@
             const[r1, c1] = QWERTY_COORDS[lowerChar];
             let distances =[];
 
-            for (const [key,[r2, c2]] of Object.entries(QWERTY_COORDS)) {
+            for (const [key, [r2, c2]] of Object.entries(QWERTY_COORDS)) {
                 if (key === lowerChar) continue;
                 const dist = Math.hypot(r1 - r2, c1 - c2);
                 distances.push({ key, dist });
             }
 
+            // Sort by closest physical keys first
             distances.sort((a, b) => a.dist - b.dist);
 
             let poolSize = Math.max(2, Math.floor((multiplier / 20.0) * 25));
@@ -281,21 +231,12 @@
         // --- START / STOP LOGIC ---
         startBtn.addEventListener('click', () => {
             if (isRunning) {
-                // User aborted the generation manually
-                stopRage(false);
+                stopRage();
                 return;
             }
 
-            // Reset the UI for a new run
-            resultImage.style.display = 'none';
-            resultText.style.display = 'none';
-            testField.style.display = 'block';
-            testField.value = '';
-
             isRunning = true;
             timeLeft = 60;
-
-            generatingText.style.display = 'inline';
             startBtn.textContent = timeLeft;
             startBtn.style.color = "#ff0000";
             document.body.classList.add('rage-active');
@@ -304,43 +245,26 @@
             timerInterval = setInterval(() => {
                 timeLeft--;
                 startBtn.textContent = timeLeft;
-                if (timeLeft <= 0) {
-                    // Timer finished successfully, reveal the image!
-                    stopRage(true);
-                }
+                if (timeLeft <= 0) stopRage();
             }, 1000);
         });
 
-        function stopRage(finishedGeneration = false) {
+        function stopRage() {
             isRunning = false;
             clearInterval(timerInterval);
-
-            generatingText.style.display = 'none';
             startBtn.textContent = 'start';
             startBtn.style.color = "#111";
             document.body.classList.remove('rage-active');
-
-            // Snap cursor back to normal
             jitterX = 0;
             jitterY = 0;
-
-            // If the timer hit 0, swap the text field for the image and text
-            if (finishedGeneration) {
-                testField.style.display = 'none';
-                resultImage.style.display = 'block';
-
-                // Show what they actually typed
-                const finalPrompt = testField.value.trim() || " ";
-                resultText.textContent = `"${finalPrompt}"`;
-                resultText.style.display = 'block';
-            }
         }
 
-        // --- KEYBOARD LOGIC ---
+        // --- KEYBOARD LOGIC (The Phantom Typist) ---
         testField.addEventListener('input', (e) => {
             if (!isRunning) return;
 
             const char = e.data;
+            // Check if input was a single letter (ignores backspaces, enters, etc)
             if (char && /^[a-zA-Z]$/.test(char)) {
                 const amount = getAmount();
                 const kbMultiplier = currentMultiplier / 2.0;
@@ -349,18 +273,19 @@
                 if (Math.random() < typoChance) {
                     const typo = getTypo(char, currentMultiplier);
 
+                    // Replicate the python wait -> backspace -> type effect visually
                     setTimeout(() => {
                         const start = testField.selectionStart;
                         if (start > 0) {
                             testField.value = testField.value.substring(0, start - 1) + typo + testField.value.substring(start);
                             testField.selectionStart = testField.selectionEnd = start;
                         }
-                    }, 80);
+                    }, 80); // 80ms gives the brain just enough time to see the correct letter before it's ripped away
                 }
             }
         });
 
-        // --- MOUSE LOGIC ---
+        // --- MOUSE LOGIC (The Deceiver) ---
         document.addEventListener('mousemove', (e) => {
             realX = e.clientX;
             realY = e.clientY;
@@ -390,9 +315,11 @@
             lastRealY = realY;
         });
 
-        // --- ANIMATION LOOP ---
+        // --- ANIMATION LOOP (The Drift) ---
         function updateCursor() {
             if (isRunning) {
+                // The fake cursor constantly decays back towards your real mouse.
+                // You have to stop moving to let it align if you want to click accurately!
                 jitterX *= 0.92;
                 jitterY *= 0.92;
 
