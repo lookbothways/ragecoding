@@ -1,0 +1,2 @@
+# ragecoding
+AI simulator
